@@ -92,7 +92,6 @@ def _generate_class(cls, pack):
     # go through the annotations and create fields
     _ctypes_fields = []
     for name, _type in cls_annotations.items():
-        print(' - adding field', name, 'with type', _type)
         if not issubclass(_type, (ctypes._SimpleCData, ctypes.Structure, ctypes.Union, ctypes.Array)):
             raise TypeError(
                 f'Invalid type for field "{name}". Only ctypes types can be used!'
@@ -159,33 +158,6 @@ def _generate_class(cls, pack):
     )
 
     # ---------------------------------------------------
-    #           __setattr__
-    # ---------------------------------------------------
-
-    body = f"""
-        print('setting attr magic', name, 'to', value)
-        field = self.__getattribute__(name)
-        field_type = field.__class__
-        if _is_pyembc_struct(field):
-            if not isinstance(value, field_type):
-                raise TypeError(
-                    f'invalid value for field "{{name}}"! Must be of type {{field_type}}!'
-                )
-            super(cls, self).__setattr__(name, value)
-        else:
-            _check_value_for(field_type, value)
-            new_value = field_type(value)
-            super(cls, self).__setattr__(name, new_value)
-    """
-    _add_method(
-        cls=cls,
-        name="__setattr__",
-        args=('self', 'name', 'value',),
-        body=body,
-        _globals={'_check_value_for': _check_value_for}
-    )
-
-    # ---------------------------------------------------
     #           __repr__
     # ---------------------------------------------------
 
@@ -208,6 +180,33 @@ def _generate_class(cls, pack):
         name="__repr__",
         args=('self',),
         body=body
+    )
+
+    # ---------------------------------------------------
+    #           __setattr__
+    # ---------------------------------------------------
+
+    body = f"""
+            print('setting attr magic', name, 'to', value)
+            field = self.__getattribute__(name)
+            field_type = field.__class__
+            if _is_pyembc_struct(field):
+                if not isinstance(value, field_type):
+                    raise TypeError(
+                        f'invalid value for field "{{name}}"! Must be of type {{field_type}}!'
+                    )
+                super(cls, self).__setattr__(name, value)
+            else:
+                _check_value_for(field_type, value)
+                new_value = field_type(value)
+                super(cls, self).__setattr__(name, new_value)
+        """
+    _add_method(
+        cls=cls,
+        name="__setattr__",
+        args=('self', 'name', 'value',),
+        body=body,
+        _globals={'_check_value_for': _check_value_for}
     )
 
     return cls
