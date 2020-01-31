@@ -586,6 +586,11 @@ if __name__ == '__main__':
 
     assert len(outer) == 3
 
+    try:
+        outer.second = 0x1234
+    except ValueError:
+        pass
+
     print(' ----- ------ -----')
     print('\n'.join(outer.ccode()))
     # print(u.ccode())
