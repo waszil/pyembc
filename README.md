@@ -20,6 +20,15 @@ class Outer(ctypes.Structure):
     second: ctypes.c_uint8
 ```
 
+### Setting fields
+
+Value setting is protected for fields:
+
+```python
+outer.second = 0x1234
+>>> ValueError: 4660 cannot be set for c_ubyte (error('ubyte format requires 0 <= number <= 255'))!
+```
+
 ### Parsing from binary data
 
 ```python
