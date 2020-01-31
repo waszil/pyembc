@@ -169,8 +169,15 @@ def _add_method(cls, name, args, body, _globals=None, _locals=None, only_for=Non
     setattr(cls, name, method)
 
 
-def _generate_class(cls, pack):
-    cls_annotations = cls.__dict__.get('__annotations__', {})
+def _generate_class(_cls, endian, pack):
+    cls_annotations = _cls.__dict__.get('__annotations__', {})
+
+    if endian == "little":
+        cls = type(_cls.__name__, (ctypes.LittleEndianStructure,), {})
+    elif endian == "big":
+        cls = type(_cls.__name__, (ctypes.BigEndianStructure,), {})
+    else:
+        raise ValueError("Invalid endianness")
 
     # set our special attribute to save fields
     setattr(cls, _FIELDS, {})
@@ -402,17 +409,18 @@ def _generate_class(cls, pack):
 
     return cls
 
-
-def pyembc(_cls=None, *, pack: int = 4):
+# todo: separate decorators for struct and union.
+def pyembc(_cls=None, *, endian="little", pack: int = 4):
     """
     Magic decorator to create a user-friendly struct class
 
     :param _cls: used for distinguishing between call modes (with or without parens)
+    :param endian: endianness. "little" or "big"
     :param pack: packing of the fields.
     :return:
     """
     def wrap(cls):
-        return _generate_class(cls, pack)
+        return _generate_class(cls, endian, pack)
     if _cls is None:
         # call with parens: @pyembc_struct(...)
         return wrap

@@ -53,13 +53,15 @@ def test_compare_construct_benchmark():
 
 def test_basics():
     @pyembc
-    class SL(ctypes.LittleEndianStructure):
+    # class SL(ctypes.LittleEndianStructure):
+    class SL:
         a: ctypes.c_uint16
         b: ctypes.c_uint8
         c: ctypes.c_uint8
 
     @pyembc
-    class SB(ctypes.BigEndianStructure):
+    # class SB(ctypes.BigEndianStructure):
+    class SB:
         a: ctypes.c_uint16
         b: ctypes.c_uint8
         c: ctypes.c_uint8
