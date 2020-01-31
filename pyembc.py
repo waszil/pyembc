@@ -81,6 +81,21 @@ def _short_type_name(_type: ctypes._SimpleCData) -> str:
     return f"{signed}{bit_size}"
 
 
+def _c_type_name(_type: ctypes._SimpleCData) -> str:
+    byte_size = struct.calcsize(_type._type_)
+    bit_size = byte_size * 8
+    if byte_size == 1:
+        name = "char"
+    elif byte_size == 2:
+        name = "short"
+    elif byte_size == 4:
+        name = "long"
+    else:
+        raise ValueError("invalid length")
+    signed = "unsigned" if _type._type_.isupper() else "signed"
+    return f"{signed} {name}"
+
+
 def __len_for_union(self):
     """
     Monkypatch __len__() method for ctypes.Union
@@ -139,6 +154,7 @@ def _add_method(cls, name, args, body, _globals=None, _locals=None, only_for=Non
         'ctypes': ctypes,
         '_is_pyembc_struct': _is_pyembc_struct,
         '_short_type_name': _short_type_name,
+        '_c_type_name': _c_type_name,
         '_is_little_endian': _is_little_endian,
         'struct': struct
     }
@@ -296,6 +312,36 @@ def _generate_class(cls, pack):
         cls=cls,
         name="parse",
         args=("self", "stream"),
+        body=body
+    )
+
+    # ---------------------------------------------------
+    #           ccode()
+    # ---------------------------------------------------
+
+    body = f"""
+        _c_types = []
+        code = []
+        typedef_code = []
+        _typename = 'struct' if issubclass(self.__class__, ctypes.Structure) else 'union'
+        code.append(f"typedef {{_typename}} _tag_{{self.__class__.__name__}} {{{{")
+        for field_name, field_type in self.{_FIELDS}.items():
+            _field = getattr(self, field_name)
+            if _is_pyembc_struct(_field):
+                code.append(f"    {{field_type.__name__}} {{field_name}};")
+            else:
+                _c_types.append(field_type)
+                code.append(f"    {{_short_type_name(field_type)}} {{field_name}};")
+        code.append(f"}}}} {{self.__class__.__name__}};")
+        for _c_type in _c_types:
+            typedef_code.append(f"typedef {{_c_type_name(_c_type)}} {{_short_type_name(_c_type)}}")
+        typedef_code.extend(code)
+        return '\\n'.join([line for line in typedef_code]) + '\\n'
+    """
+    _add_method(
+        cls=cls,
+        name="ccode",
+        args=('self',),
         body=body
     )
 
@@ -540,3 +586,6 @@ if __name__ == '__main__':
     assert outer.second == 0x33
 
     assert len(outer) == 3
+
+    print(outer.ccode())
+    print(u.ccode())
