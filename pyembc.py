@@ -4,7 +4,7 @@ import struct
 from typing import Optional, Type, Any
 
 __all__ = [
-    "pyembc_struct",
+    "pyembc",
     "ctypes"
 ]
 
@@ -331,7 +331,7 @@ def _generate_class(cls, pack):
     # ---------------------------------------------------
 
     body = f"""
-        print(f'setting attr {{name}} to {{value}}')
+        # print(f'setting attr {{name}} to {{value}}')
         field = self.__getattribute__(name)
         field_type = self.{_FIELDS}[name]
         if _is_pyembc_struct(field):
@@ -357,7 +357,7 @@ def _generate_class(cls, pack):
     return cls
 
 
-def pyembc_struct(
+def pyembc(
         _cls=None,
         *,
         pack: Optional[int] = None
@@ -457,21 +457,21 @@ def pyembc_struct(
 
 
 if __name__ == '__main__':
-    @pyembc_struct
+    @pyembc
     class SL(ctypes.LittleEndianStructure):
         a: ctypes.c_uint16
         b: ctypes.c_uint8
         c: ctypes.c_uint8
 
 
-    @pyembc_struct
+    @pyembc
     class SB(ctypes.BigEndianStructure):
         a: ctypes.c_uint16
         b: ctypes.c_uint8
         c: ctypes.c_uint8
 
 
-    @pyembc_struct
+    @pyembc
     class U(ctypes.Union):
         sl: SL
         raw: ctypes.c_uint32
@@ -501,7 +501,6 @@ if __name__ == '__main__':
     assert u.sl.b == 1
     assert u.sl.c == 2
     assert u.stream() == sl.stream()
-    print(u)
 
     assert len(sl) == 4
     assert len(sb) == 4
@@ -522,19 +521,22 @@ if __name__ == '__main__':
     assert u.sl.b == 0x43
     assert u.sl.c == 0x21
 
-    @pyembc_struct
+    @pyembc
     class Inner(ctypes.Structure):
         a: ctypes.c_uint8
         b: ctypes.c_uint8
 
 
-    @pyembc_struct
+    @pyembc
     class Outer(ctypes.Structure):
         first: Inner
         second: ctypes.c_uint8
 
     outer = Outer(first=Inner(a=1, b=2), second=3)
-    print(outer)
-    print(outer.stream())
+    assert outer.stream() == b'\x01\x02\x03'
     outer.parse(b'\x11\x22\x33')
-    print(outer)
+    assert outer.first.a == 0x11
+    assert outer.first.b == 0x22
+    assert outer.second == 0x33
+
+    assert len(outer) == 3
