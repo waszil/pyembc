@@ -320,23 +320,22 @@ def _generate_class(cls, pack):
     # ---------------------------------------------------
 
     body = f"""
-        _c_types = []
         code = []
-        typedef_code = []
         _typename = 'struct' if issubclass(self.__class__, ctypes.Structure) else 'union'
         code.append(f"typedef {{_typename}} _tag_{{self.__class__.__name__}} {{{{")
         for field_name, field_type in self.{_FIELDS}.items():
             _field = getattr(self, field_name)
             if _is_pyembc_struct(_field):
+                subcode = _field.ccode()
+                code = subcode + code
                 code.append(f"    {{field_type.__name__}} {{field_name}};")
             else:
-                _c_types.append(field_type)
-                code.append(f"    {{_short_type_name(field_type)}} {{field_name}};")
+                code.append(f"    {{_c_type_name(field_type)}} {{field_name}};")
         code.append(f"}}}} {{self.__class__.__name__}};")
-        for _c_type in _c_types:
-            typedef_code.append(f"typedef {{_c_type_name(_c_type)}} {{_short_type_name(_c_type)}};")
-        typedef_code.extend(code)
-        return '\\n'.join([line for line in typedef_code]) + '\\n'
+        # for _c_type in _c_types:
+        #     typedef_code.append(f"typedef {{_c_type_name(_c_type)}} {{_short_type_name(_c_type)}};")
+        # typedef_code.extend(code)
+        return code
     """
     _add_method(
         cls=cls,
@@ -587,5 +586,6 @@ if __name__ == '__main__':
 
     assert len(outer) == 3
 
-    print(outer.ccode())
-    print(u.ccode())
+    print(' ----- ------ -----')
+    print('\n'.join(outer.ccode()))
+    # print(u.ccode())
