@@ -334,7 +334,7 @@ def _generate_class(cls, pack):
                 code.append(f"    {{_short_type_name(field_type)}} {{field_name}};")
         code.append(f"}}}} {{self.__class__.__name__}};")
         for _c_type in _c_types:
-            typedef_code.append(f"typedef {{_c_type_name(_c_type)}} {{_short_type_name(_c_type)}}")
+            typedef_code.append(f"typedef {{_c_type_name(_c_type)}} {{_short_type_name(_c_type)}};")
         typedef_code.extend(code)
         return '\\n'.join([line for line in typedef_code]) + '\\n'
     """
