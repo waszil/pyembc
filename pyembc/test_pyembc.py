@@ -15,12 +15,12 @@ def test_compare_construct_benchmark():
         "enable" / construct.Int8ub
     )
 
-    @pyembc
+    @pyembc_struct
     class SendMode(ctypes.BigEndianStructure):
         a: ctypes.c_ubyte
         b: ctypes.c_ubyte
 
-    @pyembc
+    @pyembc_struct
     class NA2(ctypes.BigEndianStructure):
         send_mode: SendMode
         enable: ctypes.c_ubyte
@@ -52,22 +52,22 @@ def test_compare_construct_benchmark():
 
 
 def test_basics():
-    @pyembc
+    @pyembc_struct(endian="little")
     # class SL(ctypes.LittleEndianStructure):
     class SL:
         a: ctypes.c_uint16
         b: ctypes.c_uint8
         c: ctypes.c_uint8
 
-    @pyembc
+    @pyembc_struct(endian="big")
     # class SB(ctypes.BigEndianStructure):
     class SB:
         a: ctypes.c_uint16
         b: ctypes.c_uint8
         c: ctypes.c_uint8
 
-    @pyembc
-    class U(ctypes.Union):
+    @pyembc_union
+    class U:
         sl: SL
         raw: ctypes.c_uint32
 
@@ -115,14 +115,13 @@ def test_basics():
     assert u.sl.b == 0x43
     assert u.sl.c == 0x21
 
-    @pyembc
-    class Inner(ctypes.Structure):
+    @pyembc_struct
+    class Inner:
         a: ctypes.c_uint8
         b: ctypes.c_uint8
 
-
-    @pyembc
-    class Outer(ctypes.Structure):
+    @pyembc_struct
+    class Outer:
         first: Inner
         second: ctypes.c_uint8
 

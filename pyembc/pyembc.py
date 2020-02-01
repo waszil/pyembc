@@ -4,7 +4,8 @@ import struct
 from typing import Type, Any
 
 __all__ = [
-    "pyembc",
+    "pyembc_struct",
+    "pyembc_union",
     "ctypes"
 ]
 
@@ -169,15 +170,20 @@ def _add_method(cls, name, args, body, _globals=None, _locals=None, only_for=Non
     setattr(cls, name, method)
 
 
-def _generate_class(_cls, endian, pack):
+def _generate_class(_cls, target, endian="little", pack=4):
     cls_annotations = _cls.__dict__.get('__annotations__', {})
 
-    if endian == "little":
-        cls = type(_cls.__name__, (ctypes.LittleEndianStructure,), {})
-    elif endian == "big":
-        cls = type(_cls.__name__, (ctypes.BigEndianStructure,), {})
+    if target == "struct":
+        if endian == "little":
+            cls = type(_cls.__name__, (ctypes.LittleEndianStructure,), {})
+        elif endian == "big":
+            cls = type(_cls.__name__, (ctypes.BigEndianStructure,), {})
+        else:
+            raise ValueError("Invalid endianness")
+    elif target == "union":
+        cls = type(_cls.__name__, (ctypes.Union,), {})
     else:
-        raise ValueError("Invalid endianness")
+        raise ValueError
 
     # set our special attribute to save fields
     setattr(cls, _FIELDS, {})
@@ -409,8 +415,8 @@ def _generate_class(_cls, endian, pack):
 
     return cls
 
-# todo: separate decorators for struct and union.
-def pyembc(_cls=None, *, endian="little", pack: int = 4):
+
+def pyembc_struct(_cls=None, *, endian="little", pack: int = 4):
     """
     Magic decorator to create a user-friendly struct class
 
@@ -420,10 +426,22 @@ def pyembc(_cls=None, *, endian="little", pack: int = 4):
     :return:
     """
     def wrap(cls):
-        return _generate_class(cls, endian, pack)
+        return _generate_class(cls, 'struct', endian, pack)
     if _cls is None:
         # call with parens: @pyembc_struct(...)
         return wrap
     else:
         # call without parens: @pyembc_struct
         return wrap(_cls)
+
+
+def pyembc_union(cls):
+    """
+    Magic decorator to create a user-friendly struct class
+
+    :param _cls: used for distinguishing between call modes (with or without parens)
+    :return:
+    """
+    def wrap(cls):
+        return _generate_class(cls, "union")
+    return wrap(cls)
