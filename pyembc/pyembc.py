@@ -198,7 +198,8 @@ def _add_method(
         return_type: Any,
         docstring="",
         _globals: Optional[Dict[str, Any]] = None,
-        _locals: Optional[Mapping] = None
+        _locals: Optional[Mapping] = None,
+        class_method=False
 ):
     """
     Magic for adding methods dynamically to a class. Yes, it uses exec(). I know. Sorry about that.
@@ -211,6 +212,7 @@ def _add_method(
     :param docstring: optional docstring for the method
     :param _globals: globals for the method
     :param _locals: locals for the method
+    :param class_method: if True, generates a classmethod
     """
     # default locals
     __locals = dict()
@@ -240,6 +242,8 @@ def _add_method(
     exec(code, __globals, __locals)
     method = __locals[name]
     method.__doc__ = docstring
+    if class_method:
+        method = classmethod(method)
     setattr(cls, name, method)
 
 
@@ -433,17 +437,17 @@ def _generate_class(_cls, target: _PyembcTarget, endian=sys.byteorder, pack=4):
     docstring = "Generates the c representation of the instance. Returns a list of the c code lines."
     body = f"""
         code = []
-        _typename = 'struct' if issubclass(self.__class__, ctypes.Structure) else 'union'
-        code.append(f"typedef {{_typename}} _tag_{{self.__class__.__name__}} {{{{")
-        for field_name, field_type in self.{_FIELDS}.items():
-            _field = getattr(self, field_name)
-            if _is_pyembc_struct(_field):
-                subcode = _field.ccode()
+        _typename = 'struct' if issubclass(cls, ctypes.Structure) else 'union'
+        code.append(f"typedef {{_typename}} _tag_{{cls.__name__}} {{{{")
+        for field_name, field_type in cls.{_FIELDS}.items():
+            _field = getattr(cls, field_name)
+            if _is_pyembc_struct(field_type):
+                subcode = field_type.ccode()
                 code = subcode + code
                 code.append(f"    {{field_type.__name__}} {{field_name}};")
             else:
                 code.append(f"    {{_c_type_name(field_type)}} {{field_name}};")
-        code.append(f"}}}} {{self.__class__.__name__}};")
+        code.append(f"}}}} {{cls.__name__}};")
         # for _c_type in _c_types:
         #     typedef_code.append(f"typedef {{_c_type_name(_c_type)}} {{_short_type_name(_c_type)}};")
         # typedef_code.extend(code)
@@ -452,10 +456,11 @@ def _generate_class(_cls, target: _PyembcTarget, endian=sys.byteorder, pack=4):
     _add_method(
         cls=cls,
         name="ccode",
-        args=('self',),
+        args=("cls",),
         body=body,
         docstring=docstring,
-        return_type=Iterable[str]
+        return_type=Iterable[str],
+        class_method=True
     )
 
     # ---------------------------------------------------
@@ -535,7 +540,6 @@ def pyembc_struct(_cls=None, *, endian=sys.byteorder, pack: int = 4):
     else:
         # call without parens: @pyembc_struct
         return wrap(_cls)
-
 
 def pyembc_union(_cls=None, *, endian=sys.byteorder):
     """

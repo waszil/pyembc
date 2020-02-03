@@ -1,7 +1,8 @@
 import time
-from ctypes import c_ubyte, c_uint16, c_uint8, c_uint32
+from ctypes import c_ubyte, c_uint16, c_uint8, c_uint32, c_float
 
 import construct
+import pytest
 
 from .pyembc import pyembc_struct, pyembc_union
 
@@ -93,7 +94,6 @@ def test_basics():
     assert u.sl.b == 1
     assert u.sl.c == 2
     assert u.stream() == sl.stream()
-    print('Ez az union streM???', u.stream())
 
     assert len(sl) == 4
     assert len(sb) == 4
@@ -133,11 +133,15 @@ def test_basics():
 
     assert len(outer) == 3
 
-    try:
+    with pytest.raises(ValueError):
         outer.second = 0x1234
-    except ValueError:
-        pass
 
-    print(' ----- ------ -----')
-    print('\n'.join(outer.ccode()))
-    # print(u.ccode())
+
+def test_ccode():
+    @pyembc_struct
+    class S:
+        a: c_uint16
+        b: c_float
+
+    s = S()
+    assert S.ccode() == s.ccode()

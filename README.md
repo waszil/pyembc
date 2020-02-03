@@ -153,7 +153,12 @@ https://bugs.python.org/issue33178
 
 ### Generating c code
 
+The ANSI c representation of a structure/union can be created from the class itself
+or from its instance. The `ccode()` static method returns a list of lines.
+
 ```python
+print('\n'.join(Outer.ccode()))
+# or
 print('\n'.join(outer.ccode()))
 ```
 
