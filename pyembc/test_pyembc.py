@@ -1,9 +1,9 @@
 import time
-from dataclasses import dataclass
-import ctypes
+from ctypes import c_ubyte, c_uint16, c_uint8, c_uint32
+
 import construct
 
-from .pyembc import *
+from .pyembc import pyembc_struct, pyembc_union
 
 
 def test_compare_construct_benchmark():
@@ -16,14 +16,14 @@ def test_compare_construct_benchmark():
     )
 
     @pyembc_struct
-    class SendMode(ctypes.BigEndianStructure):
-        a: ctypes.c_ubyte
-        b: ctypes.c_ubyte
+    class SendMode:
+        a: c_ubyte
+        b: c_ubyte
 
     @pyembc_struct
-    class NA2(ctypes.BigEndianStructure):
+    class NA2:
         send_mode: SendMode
-        enable: ctypes.c_ubyte
+        enable: c_ubyte
 
     data = b'\x01\x02\x03\x04'
     N = 10000
@@ -53,23 +53,21 @@ def test_compare_construct_benchmark():
 
 def test_basics():
     @pyembc_struct(endian="little")
-    # class SL(ctypes.LittleEndianStructure):
     class SL:
-        a: ctypes.c_uint16
-        b: ctypes.c_uint8
-        c: ctypes.c_uint8
+        a: c_uint16
+        b: c_uint8
+        c: c_uint8
 
     @pyembc_struct(endian="big")
-    # class SB(ctypes.BigEndianStructure):
     class SB:
-        a: ctypes.c_uint16
-        b: ctypes.c_uint8
-        c: ctypes.c_uint8
+        a: c_uint16
+        b: c_uint8
+        c: c_uint8
 
     @pyembc_union
     class U:
         sl: SL
-        raw: ctypes.c_uint32
+        raw: c_uint32
 
     sl = SL(a=0xFFAA, b=1, c=2)
     assert sl.a == 0xFFAA
@@ -95,6 +93,7 @@ def test_basics():
     assert u.sl.b == 1
     assert u.sl.c == 2
     assert u.stream() == sl.stream()
+    print('Ez az union streM???', u.stream())
 
     assert len(sl) == 4
     assert len(sb) == 4
@@ -117,13 +116,13 @@ def test_basics():
 
     @pyembc_struct
     class Inner:
-        a: ctypes.c_uint8
-        b: ctypes.c_uint8
+        a: c_uint8
+        b: c_uint8
 
     @pyembc_struct
     class Outer:
         first: Inner
-        second: ctypes.c_uint8
+        second: c_uint8
 
     outer = Outer(first=Inner(a=1, b=2), second=3)
     assert outer.stream() == b'\x01\x02\x03'
