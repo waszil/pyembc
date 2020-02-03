@@ -4,7 +4,7 @@ from ctypes import c_ubyte, c_uint16, c_uint8, c_uint32, c_float
 import construct
 import pytest
 
-from .pyembc import pyembc_struct, pyembc_union
+from pyembc.pyembc import pyembc_struct, pyembc_union
 
 
 def test_compare_construct_benchmark():
@@ -52,24 +52,27 @@ def test_compare_construct_benchmark():
     print('Diff factor:', max(a, b) / min(a, b))
 
 
-def test_basics():
-    @pyembc_struct(endian="little")
-    class SL:
-        a: c_uint16
-        b: c_uint8
-        c: c_uint8
+@pyembc_struct(endian="little")
+class SL:
+    a: c_uint16
+    b: c_uint8
+    c: c_uint8
 
-    @pyembc_struct(endian="big")
-    class SB:
-        a: c_uint16
-        b: c_uint8
-        c: c_uint8
 
-    @pyembc_union
-    class U:
-        sl: SL
-        raw: c_uint32
+@pyembc_struct(endian="big")
+class SB:
+    a: c_uint16
+    b: c_uint8
+    c: c_uint8
 
+
+@pyembc_union
+class U:
+    sl: SL
+    raw: c_uint32
+
+
+def test_struct_le():
     sl = SL(a=0xFFAA, b=1, c=2)
     assert sl.a == 0xFFAA
     assert sl.b == 1
@@ -77,8 +80,10 @@ def test_basics():
     assert sl.stream() == b'\xAA\xFF\x01\x02'
     sl.a = 0x1234
     assert sl.a == 0x1234
-    sl.a = 0xFFAA
+    assert len(sl) == 4
 
+
+def test_struct_be():
     sb = SB(a=0xFFAA, b=1, c=2)
     assert sb.a == 0xFFAA
     assert sb.b == 1
@@ -86,34 +91,48 @@ def test_basics():
     assert sb.stream() == b'\xFF\xAA\x01\x02'
     sb.a = 0x1234
     assert sb.a == 0x1234
-    sb.a = 0xFFAA
+    assert len(sb) == 4
 
+
+def test_union():
+    sl = SL(a=0xFFAA, b=1, c=2)
     u = U(sl=sl)
     assert u.raw == 0x0201FFAA
     assert u.sl.a == 0xFFAA
     assert u.sl.b == 1
     assert u.sl.c == 2
     assert u.stream() == sl.stream()
-
-    assert len(sl) == 4
-    assert len(sb) == 4
     assert len(u) == 4
 
+
+def test_parse_le():
     data = b'\xCC\xBB\x11\x22'
+    sl = SL(a=0xFFAA, b=1, c=2)
     sl.parse(data)
     assert sl.a == 0xBBCC
     assert sl.b == 0x11
     assert sl.c == 0x22
+
+
+def test_parse_be():
+    data = b'\xCC\xBB\x11\x22'
+    sb = SB(a=0xFFAA, b=1, c=2)
     sb.parse(data)
     assert sb.a == 0xCCBB
     assert sb.b == 0x11
     assert sb.c == 0x22
 
+
+def test_parse_union():
+    sl = SL(a=0xFFAA, b=1, c=2)
+    u = U(sl=sl)
     u.parse(b'\x87\x65\x43\x21')
     assert u.sl.a == 0x6587
     assert u.sl.b == 0x43
     assert u.sl.c == 0x21
 
+
+def parse_embedded():
     @pyembc_struct
     class Inner:
         a: c_uint8
@@ -145,3 +164,7 @@ def test_ccode():
 
     s = S()
     assert S.ccode() == s.ccode()
+
+    _ = SL.ccode()
+    _ = SB.ccode()
+    _ = U.ccode()
