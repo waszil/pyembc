@@ -1,5 +1,5 @@
 import time
-from ctypes import c_ubyte, c_uint16, c_uint8, c_uint32, c_float
+from ctypes import c_ubyte, c_uint16, c_uint8, c_uint32, c_float, c_int8
 
 import construct
 import pytest
@@ -168,3 +168,38 @@ def test_ccode():
     _ = SL.ccode()
     _ = SB.ccode()
     _ = U.ccode()
+
+
+def test_bitfields():
+    @pyembc_struct
+    class S:
+        a: (c_uint8, 2)
+        b: (c_uint8, 6)
+
+    s = S(a=3, b=63)
+    assert s.stream() == b'\xFF'
+    s = S(a=1, b=4)
+    assert s.stream() == b'\x11'
+    s.parse(b'\xff')
+    assert s.a == 3
+    assert s.b == 63
+    s.parse(b'\x81')
+    assert s.a == 1
+    assert s.b == 32
+
+    with pytest.raises(SyntaxError):
+        @pyembc_struct
+        class S:
+            a: (c_uint8, 1)
+
+    with pytest.raises(SyntaxError):
+        @pyembc_struct
+        class S:
+            a: (c_uint8, 1)
+            b: (c_uint8, 8)
+
+    with pytest.raises(SyntaxError):
+        @pyembc_struct
+        class S:
+            a: (c_uint8, 1)
+            b: (c_int8, 7)

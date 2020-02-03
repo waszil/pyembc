@@ -151,6 +151,19 @@ See details:
 https://stackoverflow.com/questions/49524952/bigendianunion-is-not-part-of-pythons-ctypes
 https://bugs.python.org/issue33178
 
+### Bitfields
+
+Bitfields can be defined with the following syntax:
+
+```python
+@pyembc_struct
+class S:
+    a: (c_uint8, 2)
+    b: (c_uint8, 6)
+len(S())
+>>> 1
+```
+
 ### Generating c code
 
 The ANSI c representation of a structure/union can be created from the class itself

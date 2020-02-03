@@ -2,7 +2,7 @@ import sys
 import ctypes
 import struct
 from enum import Enum, auto
-from typing import Type, Any, Iterable, Dict, Optional, Mapping, Union
+from typing import Type, Any, Iterable, Dict, Optional, Mapping
 
 __all__ = [
     "pyembc_struct",
@@ -31,9 +31,10 @@ class PyembcFieldType:
     """
 
     # noinspection PyProtectedMember
-    def __init__(self, _type: Union[ctypes.Structure, ctypes.Union, ctypes._SimpleCData], bit_size: int):
+    def __init__(self, _type, bit_size: int, bit_offset: int):
         self.base_type = _type
         self.bit_size = bit_size
+        self.bit_offset = bit_offset
 
     @property
     def is_bitfield(self) -> bool:
@@ -75,17 +76,27 @@ def _check_value_for_type(field_type: PyembcFieldType, value: Any):
     if field_type.is_ctypes_simple_type:
         # check for ctypes types, that have the _type_ attribute, containing a struct char.
         struct_char = getattr(field_type.base_type, _CTYPES_TYPE_ATTR)
+        is_signed = struct_char.islower()
+        # noinspection PyProtectedMember
+        if isinstance(value, ctypes._SimpleCData):
+            _value = value.value
+        else:
+            _value = value
         try:
-            # noinspection PyProtectedMember
-            if isinstance(value, ctypes._SimpleCData):
-                _value = value.value
-            else:
-                _value = value
             struct.pack(struct_char, _value)
         except struct.error as e:
             raise ValueError(
                 f'{value} cannot be set for {field_type.base_type.__name__} ({repr(e)})!'
             ) from None
+        if field_type.is_bitfield:
+            if is_signed:
+                max_raw = 2 ** (field_type.bit_size - 1) - 1
+                min_raw = -(2 ** (field_type.bit_size - 1))
+            else:
+                max_raw = 2 ** field_type.bit_size - 1
+                min_raw = 0
+            if not min_raw <= _value <= max_raw:
+                raise ValueError(f"Cannot set {_value} for this bitfield")
     else:
         raise TypeError('Got non-ctypes type!')
 
@@ -193,7 +204,11 @@ def __repr_for_union(self):
         if _is_pyembc_type(field_type):
             s += f"{field_name}={repr(_field)}"
         else:
-            s += f"{field_name}:{_short_type_name(field_type)}={_print_field_value(_field, field_type)}"
+            if field_type.is_bitfield:
+                bitfield_info = field_type.bit_size
+            else:
+                bitfield_info = ''
+            s += f"{field_name}:{_short_type_name(field_type)}{bitfield_info}={_print_field_value(_field, field_type)}"
         if i < field_count - 1:
             s += ", "
     s += ')'
@@ -306,13 +321,40 @@ def _generate_class(_cls, target: _PyembcTarget, endian=sys.byteorder, pack=4):
     # go through the annotations and create fields
     _ctypes_fields = []
     _first_endian = None
-    for field_name, _field_type in cls_annotations.items():
+    _bitfield_counter = 0
+    _bitfield_basetype_bitsize = 0
+    _bitfield_basetype = None
+    bit_offset = None
+    for field_cnt, (field_name, _field_type) in enumerate(cls_annotations.items()):
         if isinstance(_field_type, tuple):
             __field_type, bit_size = _field_type
+            if _bitfield_counter == 0:
+                _bitfield_counter = bit_size
+                _bitfield_basetype_bitsize = struct.calcsize(__field_type._type_) * 8
+                _bitfield_basetype = __field_type
+                bit_offset = 0
+            else:
+                _bitfield_counter += bit_size
+                if __field_type != _bitfield_basetype:
+                    raise SyntaxError("Bitfields must be of same type!")
+                if _bitfield_counter > _bitfield_basetype_bitsize:
+                    raise SyntaxError("Bitfield overflow!")
+                if _bitfield_counter == _bitfield_basetype_bitsize:
+                    # full bitfield
+                    _bitfield_counter = 0
+                    _bitfield_offset = 0
+                    _bitfield_basetype_bitsize = 0
+                    _bitfield_basetype = None
+                bit_offset = (_bitfield_counter - bit_size)
         else:
+            if _bitfield_counter > 0:
+                raise SyntaxError("Incomplete bitfield definition!")
             __field_type = _field_type
             bit_size = None
-        field_type = PyembcFieldType(_type=__field_type, bit_size=bit_size)
+        if field_cnt == len(cls_annotations) - 1:
+            if _bitfield_counter > 0:
+                raise SyntaxError("Incomplete bitfield definition!")
+        field_type = PyembcFieldType(_type=__field_type, bit_size=bit_size, bit_offset=bit_offset)
         # noinspection PyProtectedMember
         if not field_type.is_ctypes_type:
             raise TypeError(
@@ -428,26 +470,7 @@ def _generate_class(_cls, target: _PyembcTarget, endian=sys.byteorder, pack=4):
     body = f"""
         if not isinstance(stream, bytes):
             raise TypeError("bytes required")
-        bytepos = 0
-        for field_name, field_type in self.{_FIELDS}.items():
-            _field = getattr(self, field_name)
-            if _is_pyembc_type(field_type):
-                _field.parse(stream[bytepos:])
-                bytepos += len(_field)
-            else:
-                fmt = field_type.base_type._type_
-                field_size_bytes = struct.calcsize(fmt)
-                if _is_little_endian(self):
-                    endianchar = '<'
-                else:
-                    endianchar = '>'
-                field_value = struct.unpack_from(f"{{endianchar}}{{fmt}}", stream[bytepos:])[0]
-                super(cls, self).__setattr__(field_name, field_value)
-                bytepos += field_size_bytes
-            if issubclass(self.__class__, ctypes.Union):
-                # for Unions, only the 0. field has to be parsed.
-                print('break for union')
-                break
+        ctypes.memmove(ctypes.addressof(self), stream, len(stream))
     """
     _add_method(
         cls=cls,
@@ -500,7 +523,11 @@ def _generate_class(_cls, target: _PyembcTarget, endian=sys.byteorder, pack=4):
             if _is_pyembc_type(field_type):
                 s += f'{{field_name}}={{repr(_field)}}'
             else:                
-                s += f'{{field_name}}:{{_short_type_name(field_type)}}={{_print_field_value(_field, field_type)}}'
+                if field_type.is_bitfield:
+                    bitfield_info = f"@{{field_type.bit_size}}"
+                else:
+                    bitfield_info = ''
+                s += f'{{field_name}}:{{_short_type_name(field_type)}}{{bitfield_info}}={{_print_field_value(_field, field_type)}}'
             if i < field_count - 1:
                 s += ', ' 
         s += ')'
