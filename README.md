@@ -1,6 +1,6 @@
 # pyembc
 
-Declarative library for for describing embedded C data types
+Declarative library for for describing embedded C data types in python
 
 ## Motivation
 
