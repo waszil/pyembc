@@ -1,5 +1,5 @@
-from . import pyembc
+from ._pyembc import *
 
 __all__ = [
-    *pyembc.__all__
+    *_pyembc.__all__
 ]
