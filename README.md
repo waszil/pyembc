@@ -2,6 +2,22 @@
 
 Declarative library for for defining embedded C data types
 
+## Motivation
+
+`pyembc` is a wrapper above the `ctypes` library providing a more simple and declarative syntax,
+what I find more easy to use.
+
+The motivation behind creating this library is to be able to write down a c structure/union very
+similarly as its written down in a c file, and then to be able to get the memory contents of
+such a data structure, that can be transferred to an embedded device with a direct memory
+access method (like XCP) and in the other way as well.
+
+I have used several similar libraries, such as [construct](https://construct.readthedocs.io/en/latest/),
+[structures](https://github.com/malinoff/structures), or even Protocol Buffers, however one was too slow,
+the other could not generate code, the third is waaay too big, and actually what I needed was very
+very limited, and that's exactly the scope of this library. Also, it was fun to write, and beware,
+I use `exec` under the hood as well! Yes, I know.
+
 ## Examples
 
 ### Declaring structures / unions
@@ -160,8 +176,17 @@ Bitfields can be defined with the following syntax:
 class S:
     a: (c_uint8, 2)
     b: (c_uint8, 6)
-len(S())
+
+s = S()
+len(s)
 >>> 1
+
+print(s)
+>>> S(a:u8@2=0x0, b:u8@6=0x0)
+
+s.parse(b'\xAA')
+print(s)
+>>> S(a:u8@2=0x2, b:u8@6=0x2A)
 ```
 
 The parsing and streaming works for them just like for normal structures.
