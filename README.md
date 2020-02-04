@@ -164,6 +164,36 @@ len(S())
 >>> 1
 ```
 
+The parsing and streaming works for them just like for normal structures.
+
+#### Bitfield definition order
+
+Note, that just as in c, the definition order of the bitfields in one byte
+depends on the byteorder of the containing structure.
+
+This means, that for a little-endian structure, the bitfields inside a byte shall be
+defined from top-down as LSB to MSB, however, for big-endian structures, the top-down
+order means MSB to LSB. See the example below, these two bitfield structures describe
+the same thing, note the change in the order of the bitfields!
+
+```python
+@pyembc_struct(endian="little")
+class BF_LE:
+    # byte 0
+    a: (c_uint8, 3)     # LSB
+    b: (c_uint8, 5)     # MSB
+    # byte 1
+    c: c_uint8
+    
+@pyembc_struct(endian="big")
+class BF_BE:
+    # byte 0
+    b: (c_uint8, 5)  # MSB
+    a: (c_uint8, 3)  # LSB
+    # byte 1
+    c: c_uint8
+```
+
 ### Generating c code
 
 The ANSI c representation of a structure/union can be created from the class itself
@@ -184,4 +214,16 @@ typedef struct _tag_Outer {
     Inner first;
     unsigned char second;
 } Outer;
+```
+
+```python
+BF_LE.print_ccode()
+```
+
+```c
+typedef struct _tag_BF_LE {
+    unsigned char a : 3;
+    unsigned char b : 5;
+    unsigned char c;
+} BF_LE;
 ```

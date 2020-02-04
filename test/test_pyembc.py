@@ -203,3 +203,35 @@ def test_bitfields():
         class S:
             a: (c_uint8, 1)
             b: (c_int8, 7)
+
+
+def test_bitfields_endian():
+    @pyembc_struct(endian="little")
+    class BF_LE:
+        # byte 0
+        a: (c_uint8, 3)     # LSB
+        b: (c_uint8, 5)     # MSB
+        # byte 1
+        c: c_uint8
+
+    bf_le = BF_LE()
+    assert len(bf_le) == 2
+    bf_le.parse(b'\xAD\x42')
+    assert bf_le.a == 0b101
+    assert bf_le.b == 0b10101
+    assert bf_le.c == 0x42
+
+    @pyembc_struct(endian="big")
+    class BF_BE:
+        # byte 0
+        b: (c_uint8, 5)  # MSB
+        a: (c_uint8, 3)  # LSB
+        # byte 1
+        c: c_uint8
+
+    bf_be = BF_BE()
+    assert len(bf_be) == 2
+    bf_be.parse(b'\xAD\x42')
+    assert bf_be.a == 0b101
+    assert bf_be.b == 0b10101
+    assert bf_be.c == 0x42

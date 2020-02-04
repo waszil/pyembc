@@ -497,7 +497,10 @@ def _generate_class(_cls, target: _PyembcTarget, endian=sys.byteorder, pack=4):
                 code = subcode + code
                 code.append(f"    {{field_type.base_type.__name__}} {{field_name}};")
             else:
-                code.append(f"    {{_c_type_name(field_type)}} {{field_name}};")
+                if field_type.is_bitfield:
+                    code.append(f"    {{_c_type_name(field_type)}} {{field_name}} : {{field_type.bit_size}};")
+                else:
+                    code.append(f"    {{_c_type_name(field_type)}} {{field_name}};")
         code.append(f"}}}} {{cls.__name__}};")
         return code
     """
@@ -508,6 +511,23 @@ def _generate_class(_cls, target: _PyembcTarget, endian=sys.byteorder, pack=4):
         body=body,
         docstring=docstring,
         return_type=Iterable[str],
+        class_method=True
+    )
+
+    # ---------------------------------------------------
+    #           print_ccode()
+    # ---------------------------------------------------
+    docstring = "Generates the c representation of the instance and prints it to the stdout."
+    body = """
+        print('\\n'.join(cls.ccode()))
+    """
+    _add_method(
+        cls=cls,
+        name="print_ccode",
+        args=("cls",),
+        body=body,
+        docstring=docstring,
+        return_type=None,
         class_method=True
     )
 
