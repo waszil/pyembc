@@ -10,7 +10,8 @@ what I find more easy to use.
 The motivation behind creating this library is to be able to write down a c structure/union very
 similarly as its written down in a c file, and then to be able to get the memory contents of
 such a data structure, that can be transferred to an embedded device with a direct memory
-access method (like XCP) and in the other way as well.
+access method (like XCP) and in the other way as well, and also to be able to generate the actual
+c code that describes the same data structure, from the python description.
 
 I have used several similar libraries, such as [construct](https://construct.readthedocs.io/en/latest/),
 [structures](https://github.com/malinoff/structures), or even Protocol Buffers, however one was too slow,
