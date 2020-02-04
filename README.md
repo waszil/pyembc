@@ -27,7 +27,7 @@ structures and unions can be declared in a similar way as with `dataclasses`:
 
 ```python
 from pyembc import pyembc_struct, pyembc_union
-from ctypes import c_uint8
+from ctypes import *
 
 @pyembc_struct
 class Inner:
