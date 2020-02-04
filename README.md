@@ -203,6 +203,8 @@ or from its instance. The `ccode()` static method returns a list of lines.
 print('\n'.join(Outer.ccode()))
 # or
 print('\n'.join(outer.ccode()))
+# or
+outer.print_ccode()
 ```
 
 ```c
@@ -215,6 +217,8 @@ typedef struct _tag_Outer {
     unsigned char second;
 } Outer;
 ```
+
+#### Generating c code for bitfields
 
 ```python
 BF_LE.print_ccode()
